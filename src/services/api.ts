@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AuthContextType } from '../contexts/AuthContext.tsx';
+import type {AuthContextType} from '../contexts/AuthContext';
 
 /**
  * Configure l'URL de base pour l'API.

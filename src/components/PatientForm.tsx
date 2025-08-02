@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import PatientService, { PatientRequestDTO, PatientResponseDTO } from '../services/patientService';
+import React, {useEffect, useState} from 'react';
+import type {PatientRequestDTO, PatientResponseDTO} from '../services/patientService';
+import PatientService from '../services/patientService';
 
 interface PatientFormProps {
     patient?: PatientResponseDTO | null; // Patient à éditer (null pour ajout)
@@ -13,7 +14,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patient, onSubmit, onCancel }
         firstName: '',
         lastName: '',
         dateOfBirth: '',
-        gender: 'MALE', // Valeur par défaut
+        gender: 'MALE',
         contactNumber: '',
         address: '',
     });
@@ -32,7 +33,6 @@ const PatientForm: React.FC<PatientFormProps> = ({ patient, onSubmit, onCancel }
                 address: patient.address,
             });
         } else {
-            // Réinitialiser le formulaire pour un nouvel ajout
             setFormData({
                 recordNumber: '',
                 firstName: '',
@@ -47,7 +47,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patient, onSubmit, onCancel }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData(prev => ({...prev, [name]: value}));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -56,15 +56,13 @@ const PatientForm: React.FC<PatientFormProps> = ({ patient, onSubmit, onCancel }
         setError(null);
         try {
             if (patient) {
-                // Modification
                 await PatientService.updatePatient(patient.id, formData);
                 alert("Patient mis à jour avec succès !");
             } else {
-                // Ajout
                 await PatientService.createPatient(formData);
                 alert("Patient ajouté avec succès !");
             }
-            onSubmit(); // Notifier le parent que la soumission est réussie
+            onSubmit();
         } catch (err) {
             console.error("Erreur lors de la soumission du formulaire patient:", err);
             setError("Erreur lors de l'enregistrement du patient. Vérifiez les données.");

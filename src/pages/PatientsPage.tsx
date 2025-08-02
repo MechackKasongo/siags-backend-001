@@ -1,6 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import PatientService, { PatientResponseDTO, PaginatedResponse } from '../services/patientService';
-import PatientForm from '../components/PatientForm'; // Pour le formulaire d'ajout/modification
+import React, {useCallback, useEffect, useState} from 'react';
+import type {PaginatedResponse, PatientResponseDTO} from '../services/patientService';
+import PatientService from '../services/patientService';
+import PatientForm from '../components/PatientForm';
+import {
+    Box,
+    Button,
+    CircularProgress,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TextField,
+    Typography
+} from '@mui/material';
 
 const PatientsPage: React.FC = () => {
     const [patients, setPatients] = useState<PatientResponseDTO[]>([]);
@@ -11,22 +26,20 @@ const PatientsPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState<number>(0);
     const [totalPages, setTotalPages] = useState<number>(0);
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const pageSize: number = 10; // Définissez votre taille de page
+    const pageSize: number = 10;
 
-    const fetchPatients = async (page: number = 0) => {
+    const fetchPatients = useCallback(async (page: number = 0, query: string = '') => {
         setLoading(true);
         setError(null);
         try {
-            let response: PaginatedResponse<PatientResponseDTO> | PatientResponseDTO[];
-
-            if (searchQuery) {
-                // Si une recherche est active, nous n'utilisons pas la pagination normale du service
-                // Vous pouvez ajuster cela si votre API de recherche supporte la pagination
-                response = await PatientService.searchPatients(searchQuery);
-                setPatients(response as PatientResponseDTO[]);
-                setTotalPages(1); // Pour la recherche, on peut considérer qu'il y a une seule "page" de résultats
+            if (query.trim()) {
+                // Rechercher sans pagination (adapter selon backend)
+                const results = await PatientService.searchPatients(query.trim());
+                setPatients(results);
+                setTotalPages(1);
+                setCurrentPage(0);
             } else {
-                response = await PatientService.getAllPatients(page, pageSize);
+                const response: PaginatedResponse<PatientResponseDTO> = await PatientService.getAllPatients(page, pageSize);
                 setPatients(response.content);
                 setTotalPages(response.totalPages);
                 setCurrentPage(response.number);
@@ -37,14 +50,14 @@ const PatientsPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [pageSize]);
 
     useEffect(() => {
-        fetchPatients(currentPage);
-    }, [currentPage, searchQuery]); // Recharger si la page ou la recherche change
+        fetchPatients(currentPage, searchQuery);
+    }, [fetchPatients, currentPage, searchQuery]);
 
     const handleAddPatient = () => {
-        setEditingPatient(null); // Pas de patient en édition
+        setEditingPatient(null);
         setShowForm(true);
     };
 
@@ -58,8 +71,13 @@ const PatientsPage: React.FC = () => {
             try {
                 setLoading(true);
                 await PatientService.deletePatient(id);
-                fetchPatients(currentPage); // Recharger les patients après suppression
                 alert("Patient supprimé avec succès !");
+                // Recharge la page actuelle, en s'assurant que si on est sur la dernière page avec un seul élément, on remonte d'une page
+                if (patients.length === 1 && currentPage > 0) {
+                    setCurrentPage(currentPage - 1);
+                } else {
+                    fetchPatients(currentPage, searchQuery);
+                }
             } catch (err) {
                 console.error("Erreur lors de la suppression du patient:", err);
                 setError("Impossible de supprimer le patient.");
@@ -71,7 +89,7 @@ const PatientsPage: React.FC = () => {
     const handleFormSubmit = () => {
         setShowForm(false);
         setEditingPatient(null);
-        fetchPatients(currentPage); // Recharger les patients après ajout/modification
+        fetchPatients(currentPage, searchQuery);
     };
 
     const handleFormCancel = () => {
@@ -81,110 +99,118 @@ const PatientsPage: React.FC = () => {
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
-        // Optionnel: Déclencher la recherche après un délai (debounce) pour éviter trop de requêtes
+        setCurrentPage(0);
     };
 
-    const handleSearchSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setCurrentPage(0); // Réinitialiser à la première page pour la recherche
-        fetchPatients(0);
-    };
-
-
-    if (loading) return <p>Chargement des patients...</p>;
-    if (error) return <p style={{ color: 'red' }}>Erreur: {error}</p>;
+    if (loading) return (
+        <Box sx={{display: 'flex', justifyContent: 'center', mt: 4}}>
+            <CircularProgress/>
+        </Box>
+    );
+    if (error) return <Typography color="error" sx={{mt: 4}}>{error}</Typography>;
 
     return (
-        <div>
-            <h2>Gestion des Patients</h2>
+        <Box sx={{p: 3}}>
+            <Typography variant="h4" gutterBottom>Gestion des Patients</Typography>
 
-            <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <form onSubmit={handleSearchSubmit}>
-                    <input
-                        type="text"
+            <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 2}}>
+                <Box component="form" onSubmit={e => e.preventDefault()} sx={{display: 'flex', gap: 1}}>
+                    <TextField
                         placeholder="Rechercher par nom/prénom..."
                         value={searchQuery}
                         onChange={handleSearchChange}
-                        style={{ padding: '8px', marginRight: '10px', width: '300px' }}
+                        size="small"
                     />
-                    <button type="submit" style={{ padding: '8px 12px', cursor: 'pointer' }}>Rechercher</button>
-                </form>
-                <button onClick={handleAddPatient} style={{ padding: '10px 15px', backgroundColor: 'green', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                    <Button variant="contained" onClick={() => fetchPatients(0, searchQuery)}>Rechercher</Button>
+                </Box>
+
+                <Button variant="contained" color="success" onClick={handleAddPatient}>
                     Ajouter Patient
-                </button>
-            </div>
+                </Button>
+            </Box>
+
+            {patients.length === 0 ? (
+                <Typography>Aucun patient trouvé.</Typography>
+            ) : (
+                <>
+                    <TableContainer component={Paper}>
+                        <Table size="small" aria-label="patients table">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>N° Dossier</TableCell>
+                                    <TableCell>Nom Complet</TableCell>
+                                    <TableCell>Date de Naissance</TableCell>
+                                    <TableCell>Genre</TableCell>
+                                    <TableCell>Contact</TableCell>
+                                    <TableCell>Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {patients.map(patient => (
+                                    <TableRow key={patient.id}>
+                                        <TableCell>{patient.recordNumber}</TableCell>
+                                        <TableCell>{patient.lastName} {patient.firstName}</TableCell>
+                                        <TableCell>{patient.dateOfBirth}</TableCell>
+                                        <TableCell>{patient.gender}</TableCell>
+                                        <TableCell>{patient.contactNumber}</TableCell>
+                                        <TableCell>
+                                            <Button size="small" onClick={() => handleEditPatient(patient)}
+                                                    sx={{mr: 1}}>Modifier</Button>
+                                            <Button size="small" color="error"
+                                                    onClick={() => handleDeletePatient(patient.id)}>Supprimer</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+
+                    {!searchQuery && totalPages > 1 && (
+                        <Box sx={{mt: 2, textAlign: 'center'}}>
+                            <Button
+                                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                                disabled={currentPage === 0}
+                                sx={{mr: 1}}
+                            >
+                                Précédent
+                            </Button>
+                            <Typography component="span" sx={{mx: 1}}>
+                                Page {currentPage + 1} sur {totalPages}
+                            </Typography>
+                            <Button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                                disabled={currentPage === totalPages - 1}
+                                sx={{ml: 1}}
+                            >
+                                Suivant
+                            </Button>
+                        </Box>
+                    )}
+                </>
+            )}
 
             {showForm && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
-                    justifyContent: 'center', alignItems: 'center', zIndex: 1000
-                }}>
-                    <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', maxWidth: '600px', width: '90%' }}>
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 1300,
+                    }}
+                >
+                    <Box sx={{bgcolor: 'background.paper', p: 3, borderRadius: 2, maxWidth: 600, width: '90%'}}>
                         <PatientForm
                             patient={editingPatient}
                             onSubmit={handleFormSubmit}
                             onCancel={handleFormCancel}
                         />
-                    </div>
-                </div>
+                    </Box>
+                </Box>
             )}
-
-            {patients.length === 0 && <p>Aucun patient trouvé.</p>}
-
-            {patients.length > 0 && (
-                <>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-                        <thead>
-                        <tr style={{ backgroundColor: '#e0e0e0' }}>
-                            <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>N° Dossier</th>
-                            <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>Nom Complet</th>
-                            <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>Date de Naissance</th>
-                            <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>Genre</th>
-                            <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>Contact</th>
-                            <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {patients.map((patient) => (
-                            <tr key={patient.id} style={{ borderBottom: '1px solid #eee' }}>
-                                <td style={{ padding: '10px', border: '1px solid #ddd' }}>{patient.recordNumber}</td>
-                                <td style={{ padding: '10px', border: '1px solid #ddd' }}>{patient.lastName} {patient.firstName}</td>
-                                <td style={{ padding: '10px', border: '1px solid #ddd' }}>{patient.dateOfBirth}</td>
-                                <td style={{ padding: '10px', border: '1px solid #ddd' }}>{patient.gender}</td>
-                                <td style={{ padding: '10px', border: '1px solid #ddd' }}>{patient.contactNumber}</td>
-                                <td style={{ padding: '10px', border: '1px solid #ddd' }}>
-                                    <button onClick={() => handleEditPatient(patient)} style={{ marginRight: '10px', padding: '6px 10px', cursor: 'pointer' }}>Modifier</button>
-                                    <button onClick={() => handleDeletePatient(patient.id)} style={{ padding: '6px 10px', backgroundColor: 'red', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Supprimer</button>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-
-                    {/* Pagination */}
-                    {!searchQuery && totalPages > 1 && (
-                        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                                disabled={currentPage === 0}
-                                style={{ padding: '8px 12px', marginRight: '10px', cursor: 'pointer' }}
-                            >
-                                Précédent
-                            </button>
-                            <span>Page {currentPage + 1} sur {totalPages}</span>
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                                disabled={currentPage === totalPages - 1}
-                                style={{ padding: '8px 12px', marginLeft: '10px', cursor: 'pointer' }}
-                            >
-                                Suivant
-                            </button>
-                        </div>
-                    )}
-                </>
-            )}
-        </div>
+        </Box>
     );
 };
 

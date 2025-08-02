@@ -1,9 +1,7 @@
 import api from './api';
-import { PaginatedResponse } from './patientService'; // Réutiliser l'interface de pagination
+import type {PaginatedResponse} from './patientService';
 
-// --- Interfaces pour les DTOs des Admissions ---
-// Ces interfaces DOIVENT correspondre à la structure de vos DTOs Spring Boot
-// d'après GDto.txt et EModel.txt
+// import PatientService from './patientService';
 
 export interface DepartmentResponseDTO {
     id: number;

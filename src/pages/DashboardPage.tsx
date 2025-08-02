@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-// Vous pourrez importer vos services de rapport ici plus tard
-// import reportService from '../services/reportService';
+import React, {useEffect, useState} from 'react';
+import {Box, CircularProgress, Paper, Typography} from '@mui/material';
 
 const DashboardPage: React.FC = () => {
     const [totalPatients, setTotalPatients] = useState<number | null>(null);
@@ -12,14 +11,8 @@ const DashboardPage: React.FC = () => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                // Exemple d'appel à un service (vous devrez créer reportService.ts)
-                // const patientsCount = await reportService.getTotalPatientsCount();
-                // setTotalPatients(patientsCount);
 
-                // const todayAdmissions = await reportService.getAdmissionsCountToday();
-                // setAdmissionsToday(todayAdmissions);
-
-                // Pour l'instant, des données mockées
+                // Simuler l'appel API
                 setTimeout(() => {
                     setTotalPatients(1250);
                     setAdmissionsToday(15);
@@ -35,28 +28,38 @@ const DashboardPage: React.FC = () => {
         fetchData();
     }, []);
 
-    if (loading) return <p>Chargement du tableau de bord...</p>;
-    if (error) return <p style={{ color: 'red' }}>Erreur: {error}</p>;
+    if (loading) {
+        return (
+            <Box sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+                <CircularProgress/>
+                <Typography variant="h6" sx={{ml: 2}}>Chargement du tableau de bord...</Typography>
+            </Box>
+        );
+    }
+
+    if (error) {
+        return <Typography color="error">{error}</Typography>;
+    }
 
     return (
-        <div>
-            <h2>Tableau de Bord</h2>
-            <p>Bienvenue sur le système intégré d'admission et de gestion des patients (SIAGS).</p>
+        <Box sx={{p: 3}}>
+            <Typography variant="h4" gutterBottom>Tableau de Bord</Typography>
+            <Typography>Bienvenue sur le système intégré d'admission et de gestion des patients (SIAGS).</Typography>
 
-            <div style={{ display: 'flex', gap: '20px', marginTop: '30px' }}>
-                <div style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '8px', flex: 1, backgroundColor: 'white' }}>
-                    <h3>Patients Totaux</h3>
-                    <p style={{ fontSize: '2em', fontWeight: 'bold' }}>{totalPatients}</p>
-                </div>
-                <div style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '8px', flex: 1, backgroundColor: 'white' }}>
-                    <h3>Admissions Aujourd'hui</h3>
-                    <p style={{ fontSize: '2em', fontWeight: 'bold' }}>{admissionsToday}</p>
-                </div>
+            <Box sx={{display: 'flex', gap: 3, mt: 4}}>
+                <Paper sx={{p: 3, flex: 1, textAlign: 'center'}}>
+                    <Typography variant="h6" gutterBottom>Patients Totaux</Typography>
+                    <Typography variant="h3" fontWeight="bold">{totalPatients}</Typography>
+                </Paper>
+
+                <Paper sx={{p: 3, flex: 1, textAlign: 'center'}}>
+                    <Typography variant="h6" gutterBottom>Admissions Aujourd'hui</Typography>
+                    <Typography variant="h3" fontWeight="bold">{admissionsToday}</Typography>
+                </Paper>
+
                 {/* Ajoutez d'autres widgets ici */}
-            </div>
-
-            {/* Vous pouvez ajouter des graphiques, des listes d'événements récents, etc. */}
-        </div>
+            </Box>
+        </Box>
     );
 };
 

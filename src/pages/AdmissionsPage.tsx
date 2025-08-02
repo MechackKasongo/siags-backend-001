@@ -1,9 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import AdmissionService, { AdmissionResponseDTO, PaginatedResponse } from '../services/admissionService';
+import React, {useEffect, useState} from 'react';
+import AdmissionService, {AdmissionResponseDTO, PaginatedResponse} from '../services/admissionService';
 import AdmissionForm from '../components/AdmissionForm';
 import {
-    Button, CircularProgress, Box, Typography, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, TablePagination, Dialog, DialogTitle, DialogContent
+    Alert,
+    Box,
+    Button,
+    CircularProgress,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    Paper,
+    Snackbar,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TablePagination,
+    TableRow,
+    Typography
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -18,6 +33,11 @@ const AdmissionsPage: React.FC = () => {
     const [page, setPage] = useState<number>(0);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
     const [totalElements, setTotalElements] = useState<number>(0);
+    const [snackbar, setSnackbar] = useState<{
+        open: boolean,
+        message: string,
+        severity: 'success' | 'error'
+    }>({open: false, message: '', severity: 'success'});
 
     const fetchAdmissions = async (currentPage: number, pageSize: number) => {
         setLoading(true);
@@ -53,11 +73,11 @@ const AdmissionsPage: React.FC = () => {
             try {
                 setLoading(true);
                 await AdmissionService.deleteAdmission(id);
-                alert("Admission supprimée avec succès !");
-                fetchAdmissions(page, rowsPerPage); // Recharger les admissions
+                setSnackbar({open: true, message: "Admission supprimée avec succès !", severity: 'success'});
+                fetchAdmissions(page, rowsPerPage);
             } catch (err) {
                 console.error("Erreur lors de la suppression de l'admission:", err);
-                setError("Impossible de supprimer l'admission.");
+                setSnackbar({open: true, message: "Impossible de supprimer l'admission.", severity: 'error'});
                 setLoading(false);
             }
         }
@@ -66,7 +86,7 @@ const AdmissionsPage: React.FC = () => {
     const handleFormSubmit = () => {
         setOpenForm(false);
         setEditingAdmission(null);
-        fetchAdmissions(page, rowsPerPage); // Recharger les admissions après succès
+        fetchAdmissions(page, rowsPerPage);
     };
 
     const handleFormClose = () => {
@@ -80,7 +100,11 @@ const AdmissionsPage: React.FC = () => {
 
     const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
         setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0); // Retour à la première page lors du changement de taille
+        setPage(0);
+    };
+
+    const handleSnackbarClose = () => {
+        setSnackbar(prev => ({...prev, open: false}));
     };
 
     if (loading) {
@@ -104,14 +128,15 @@ const AdmissionsPage: React.FC = () => {
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={handleAddAdmission}
+                    disabled={loading}
                 >
                     Ajouter Admission
                 </Button>
             </Box>
 
-            {admissions.length === 0 && <Typography>Aucune admission trouvée.</Typography>}
-
-            {admissions.length > 0 && (
+            {admissions.length === 0 ? (
+                <Typography>Aucune admission trouvée.</Typography>
+            ) : (
                 <Paper>
                     <TableContainer>
                         <Table>
@@ -136,7 +161,7 @@ const AdmissionsPage: React.FC = () => {
                                         <TableCell>{admission.reasonForAdmission}</TableCell>
                                         <TableCell>{admission.assignedDepartment?.name || 'N/A'}</TableCell>
                                         <TableCell>{admission.roomNumber}/{admission.bedNumber}</TableCell>
-                                        <TableCell>{admission.status}</TableCell>
+                                        <TableCell>{admission.status.charAt(0) + admission.status.slice(1).toLowerCase()}</TableCell>
                                         <TableCell>
                                             <Button
                                                 startIcon={<EditIcon />}
@@ -183,6 +208,17 @@ const AdmissionsPage: React.FC = () => {
                     />
                 </DialogContent>
             </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleSnackbarClose}
+                anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+            >
+                <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{width: '100%'}}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };

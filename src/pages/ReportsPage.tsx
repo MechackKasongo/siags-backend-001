@@ -1,16 +1,15 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, {useContext, useEffect, useState} from 'react';
 import ReportService, {
-    PatientGenderDistributionDTO, AdmissionCountByDepartmentDTO, MonthlyAdmissionCountDTO
+    AdmissionCountByDepartmentDTO,
+    MonthlyAdmissionCountDTO,
+    PatientGenderDistributionDTO
 } from '../services/reportService';
-import {
-    Box, Typography, CircularProgress, Paper, Grid, Card, CardContent
-} from '@mui/material';
-import { AuthContext } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { Bar, Pie } from 'react-chartjs-2'; // Pour les graphiques
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import {Box, Button, Card, CardContent, CircularProgress, Grid, Paper, Typography} from '@mui/material';
+import {AuthContext} from '../contexts/AuthContext';
+import {useNavigate} from 'react-router-dom';
+import {Bar, Pie} from 'react-chartjs-2';
+import {ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
 
-// Enregistrer les composants Chart.js nécessaires
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const ReportsPage: React.FC = () => {
@@ -18,6 +17,7 @@ const ReportsPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const [totalPatients, setTotalPatients] = useState<number | null>(null);
+    const [totalAdmissions, setTotalAdmissions] = useState<number | null>(null);
     const [genderDistribution, setGenderDistribution] = useState<PatientGenderDistributionDTO[]>([]);
     const [admissionByDepartment, setAdmissionByDepartment] = useState<AdmissionCountByDepartmentDTO[]>([]);
     const [monthlyAdmissions, setMonthlyAdmissions] = useState<MonthlyAdmissionCountDTO[]>([]);
@@ -26,28 +26,29 @@ const ReportsPage: React.FC = () => {
     const authContext = useContext(AuthContext);
     const navigate = useNavigate();
 
-    // Vérification de rôle (ADMIN ou MEDECIN)
     const isAuthorized = authContext?.user?.roles.includes('ROLE_ADMIN') || authContext?.user?.roles.includes('ROLE_MEDECIN');
 
     useEffect(() => {
         if (!isAuthorized) {
-            navigate('/unauthorized'); // Rediriger si non autorisé
+            navigate('/unauthorized');
             return;
         }
         const fetchReports = async () => {
             setLoading(true);
             setError(null);
             try {
-                const patientsCount = await ReportService.getTotalPatientsCount();
+                const [patientsCount, admissionsCount, genderDist, deptAdmissions, monthlyAdm] = await Promise.all([
+                    ReportService.getTotalPatientsCount(),
+                    ReportService.getTotalAdmissionsCount(),
+                    ReportService.getPatientGenderDistribution(),
+                    ReportService.getAdmissionCountByDepartment(),
+                    ReportService.getMonthlyAdmissionCount(currentYear),
+                ]);
+
                 setTotalPatients(patientsCount);
-
-                const genderDist = await ReportService.getPatientGenderDistribution();
+                setTotalAdmissions(admissionsCount);
                 setGenderDistribution(genderDist);
-
-                const deptAdmissions = await ReportService.getAdmissionCountByDepartment();
                 setAdmissionByDepartment(deptAdmissions);
-
-                const monthlyAdm = await ReportService.getMonthlyAdmissionCount(currentYear);
                 setMonthlyAdmissions(monthlyAdm);
 
             } catch (err) {
@@ -60,17 +61,15 @@ const ReportsPage: React.FC = () => {
         fetchReports();
     }, [isAuthorized, navigate, currentYear]);
 
-    // Données pour le graphique de distribution par genre
     const genderChartData = {
         labels: genderDistribution.map(d => d.gender),
         datasets: [{
             data: genderDistribution.map(d => d.count),
-            backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56'], // Bleu, Rose, Jaune
+            backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56'],
             hoverBackgroundColor: ['#36A2EB', '#FF6384', '#FFCE56'],
         }],
     };
 
-    // Données pour le graphique des admissions par département
     const deptChartData = {
         labels: admissionByDepartment.map(d => d.departmentName),
         datasets: [{
@@ -82,9 +81,8 @@ const ReportsPage: React.FC = () => {
         }],
     };
 
-    // Données pour le graphique des admissions mensuelles
     const monthlyChartData = {
-        labels: Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('fr', { month: 'long' })), // Noms des mois
+        labels: Array.from({length: 12}, (_, i) => new Date(0, i).toLocaleString('fr', {month: 'long'})),
         datasets: [{
             label: `Admissions en ${currentYear}`,
             data: Array.from({ length: 12 }, (_, i) => monthlyAdmissions.find(m => m.month === i + 1)?.count || 0),
@@ -94,9 +92,7 @@ const ReportsPage: React.FC = () => {
         }],
     };
 
-    if (!isAuthorized) {
-        return <Typography color="error">Accès non autorisé. Seuls les administrateurs et médecins peuvent accéder aux rapports.</Typography>;
-    }
+    if (!isAuthorized) return null;
 
     if (loading) {
         return (
@@ -108,18 +104,23 @@ const ReportsPage: React.FC = () => {
     }
 
     if (error) {
-        return <Typography color="error">Erreur: {error}</Typography>;
+        return (
+            <Box sx={{textAlign: 'center', mt: 4}}>
+                <Typography color="error" gutterBottom>Erreur: {error}</Typography>
+                <Button variant="contained" onClick={() => window.location.reload()}>Recharger</Button>
+            </Box>
+        );
     }
 
     return (
         <Box sx={{ p: 3 }}>
             <Typography variant="h4" component="h2" gutterBottom>Tableau de Bord des Rapports</Typography>
 
-            <Grid container spacing={3}>
+            <Grid container spacing={3} mb={3}>
                 <Grid item xs={12} md={4}>
                     <Card>
                         <CardContent>
-                            <Typography variant="h6" component="div">Total Patients</Typography>
+                            <Typography variant="h6">Total Patients</Typography>
                             <Typography variant="h3" color="primary">{totalPatients}</Typography>
                         </CardContent>
                     </Card>
@@ -127,32 +128,45 @@ const ReportsPage: React.FC = () => {
                 <Grid item xs={12} md={4}>
                     <Card>
                         <CardContent>
-                            <Typography variant="h6" component="div">Total Admissions</Typography>
-                            <Typography variant="h3" color="primary">{null /* TODO: get total admissions count */}</Typography>
+                            <Typography variant="h6">Total Admissions</Typography>
+                            <Typography variant="h3" color="primary">{totalAdmissions}</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
-                {/* Ajoutez d'autres cartes de KPI si besoin */}
+            </Grid>
 
+            <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                     <Paper sx={{ p: 2 }}>
                         <Typography variant="h6" gutterBottom>Distribution des Patients par Genre</Typography>
-                        <Pie data={genderChartData} />
+                        {genderDistribution.length === 0 ? (
+                            <Typography>Aucune donnée de distribution par genre disponible.</Typography>
+                        ) : (
+                            <Pie data={genderChartData} aria-label="Distribution des patients par genre"/>
+                        )}
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={6}>
                     <Paper sx={{ p: 2 }}>
                         <Typography variant="h6" gutterBottom>Admissions par Département</Typography>
-                        <Bar data={deptChartData} />
+                        {admissionByDepartment.length === 0 ? (
+                            <Typography>Aucune donnée disponible.</Typography>
+                        ) : (
+                            <Bar data={deptChartData} aria-label="Admissions par département"/>
+                        )}
                     </Paper>
                 </Grid>
                 <Grid item xs={12}>
                     <Paper sx={{ p: 2 }}>
                         <Typography variant="h6" gutterBottom>Admissions Mensuelles ({currentYear})</Typography>
-                        <Bar data={monthlyChartData} />
+                        {monthlyAdmissions.length === 0 ? (
+                            <Typography>Aucune donnée disponible.</Typography>
+                        ) : (
+                            <Bar data={monthlyChartData}
+                                 aria-label={`Admissions mensuelles pour l'année ${currentYear}`}/>
+                        )}
                     </Paper>
                 </Grid>
-                {/* Ajoutez d'autres graphiques ou tableaux de rapports ici */}
             </Grid>
         </Box>
     );

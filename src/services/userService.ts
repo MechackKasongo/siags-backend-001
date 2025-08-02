@@ -1,5 +1,5 @@
 import api from './api';
-import { PaginatedResponse } from './patientService'; // Réutiliser l'interface de pagination
+import type {PaginatedResponse} from './patientService'; // Réutiliser l'interface de pagination
 
 // --- Interfaces pour les DTOs des Utilisateurs ---
 // D'après GDto.txt et AService.txt

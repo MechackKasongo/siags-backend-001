@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import {
-    TextField, Button, Select, MenuItem, InputLabel, FormControl, CircularProgress, Box
-} from '@mui/material';
-import AdmissionService, { AdmissionRequestDTO, AdmissionResponseDTO, DepartmentResponseDTO } from '../services/admissionService';
-import { PatientResponseDTO, PaginatedResponse } from '../services/patientService'; // Pour rechercher les patients
+import React, {useEffect, useState} from 'react';
+import {Box, Button, CircularProgress, FormControl, InputLabel, MenuItem, Select, TextField} from '@mui/material';
+import type {AdmissionRequestDTO, AdmissionResponseDTO, DepartmentResponseDTO} from '../services/admissionService';
+import AdmissionService from '../services/admissionService';
+import type {PatientResponseDTO} from '../services/patientService'; // Pour rechercher les patients
 import Autocomplete from '@mui/material/Autocomplete';
 import api from '../services/api'; // Pour l'appel de recherche de patients
+// import { PatientResponseDTO, PaginatedResponse } from '../services/patientService';
+
 
 interface AdmissionFormProps {
     admission?: AdmissionResponseDTO | null;
@@ -24,14 +25,13 @@ const AdmissionForm: React.FC<AdmissionFormProps> = ({ admission, onSubmit, onCa
         status: admission?.status || 'ACTIVE',
         dischargeDate: admission?.dischargeDate || undefined,
     });
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [departments, setDepartments] = useState<DepartmentResponseDTO[]>([]);
     const [patientsOptions, setPatientsOptions] = useState<PatientResponseDTO[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<PatientResponseDTO | null>(admission?.patient || null);
 
     useEffect(() => {
-        // Charger les départements
         const fetchDepartments = async () => {
             try {
                 const data = await AdmissionService.getAllDepartments();
@@ -43,7 +43,6 @@ const AdmissionForm: React.FC<AdmissionFormProps> = ({ admission, onSubmit, onCa
         };
         fetchDepartments();
 
-        // Pré-remplir le formulaire si mode édition
         if (admission) {
             setFormData({
                 patientId: admission.patient.id,
@@ -57,7 +56,6 @@ const AdmissionForm: React.FC<AdmissionFormProps> = ({ admission, onSubmit, onCa
             });
             setSelectedPatient(admission.patient);
         } else {
-            // Réinitialiser le formulaire pour un nouvel ajout
             setFormData({
                 patientId: 0,
                 admissionDate: new Date().toISOString().slice(0, 16),
@@ -72,15 +70,12 @@ const AdmissionForm: React.FC<AdmissionFormProps> = ({ admission, onSubmit, onCa
         }
     }, [admission]);
 
-    // Fonction de recherche de patients pour l'Autocomplete
     const handlePatientSearch = async (event: React.SyntheticEvent, value: string) => {
         if (value.length < 2) {
             setPatientsOptions([]);
             return;
         }
         try {
-            // Assurez-vous d'avoir une API de recherche de patients dans PatientService
-            // Ou une recherche générique via api.ts si elle n'est pas paginée pour l'autocomplete
             const response = await api.get<PatientResponseDTO[]>(`/patients/search?query=${value}`);
             setPatientsOptions(response.data);
         } catch (err) {
@@ -90,12 +85,12 @@ const AdmissionForm: React.FC<AdmissionFormProps> = ({ admission, onSubmit, onCa
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData(prev => ({...prev, [name]: value}));
     };
 
     const handleSelectChange = (e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name as string]: value }));
+        setFormData(prev => ({...prev, [name as string]: value}));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -144,7 +139,7 @@ const AdmissionForm: React.FC<AdmissionFormProps> = ({ admission, onSubmit, onCa
                 value={selectedPatient}
                 onChange={(event: React.SyntheticEvent, newValue: PatientResponseDTO | null) => {
                     setSelectedPatient(newValue);
-                    setFormData((prev) => ({ ...prev, patientId: newValue?.id || 0 }));
+                    setFormData(prev => ({...prev, patientId: newValue?.id || 0}));
                 }}
                 onInputChange={handlePatientSearch}
                 renderInput={(params) => (
@@ -153,7 +148,7 @@ const AdmissionForm: React.FC<AdmissionFormProps> = ({ admission, onSubmit, onCa
                         label="Rechercher et sélectionner un patient"
                         variant="outlined"
                         required
-                        error={!selectedPatient && !!error} // Affiche une erreur si pas de patient sélectionné
+                        error={!selectedPatient && !!error}
                         helperText={!selectedPatient && !!error ? "Veuillez sélectionner un patient" : ""}
                     />
                 )}
@@ -188,10 +183,8 @@ const AdmissionForm: React.FC<AdmissionFormProps> = ({ admission, onSubmit, onCa
                     onChange={handleSelectChange}
                 >
                     <MenuItem value={0} disabled>Sélectionner un département</MenuItem>
-                    {departments.map((dept) => (
-                        <MenuItem key={dept.id} value={dept.id}>
-                            {dept.name}
-                        </MenuItem>
+                    {departments.map(dept => (
+                        <MenuItem key={dept.id} value={dept.id}>{dept.name}</MenuItem>
                     ))}
                 </Select>
             </FormControl>
